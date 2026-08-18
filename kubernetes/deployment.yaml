@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: flask
-          image: kubernetes-flask:v1
+          image: kubernetes-flask:v2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5006

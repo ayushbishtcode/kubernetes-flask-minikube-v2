@@ -1,5 +1,4 @@
 from flask import Flask
-import os
 import socket
 
 app = Flask(__name__)
@@ -9,7 +8,7 @@ app = Flask(__name__)
 def home():
     return {
         "application": "Kubernetes Flask Demo",
-        "version": os.getenv("APP_VERSION", "v1"),
+        "version": "v2",
         "pod": socket.gethostname(),
         "status": "running"
     }
