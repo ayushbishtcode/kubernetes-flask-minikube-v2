@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+
+metadata:
+  name: flask-pod
+  namespace: flask-dev
+
+spec:
+  containers:
+    - name: flask
+      image: kubernetes-flask:v1
+      imagePullPolicy: IfNotPresent
+      ports:
+        - containerPort: 5006
