@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: admin-deployment
+  namespace: flask-dev
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: admin
+
+  template:
+    metadata:
+      labels:
+        app: admin
+
+    spec:
+      containers:
+        - name: admin
+          image: admin-app:v1
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 5007
