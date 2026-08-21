@@ -20,7 +20,14 @@ spec:
     spec:
       containers:
         - name: flask
-          image: kubernetes-flask:v2
+          image: kubernetes-flask:v3
           imagePullPolicy: IfNotPresent
+
           ports:
             - containerPort: 5006
+
+          envFrom:
+            - configMapRef:
+                name: flask-config
+            - secretRef:
+                name: flask-secret

@@ -1,16 +1,26 @@
 from flask import Flask
-import socket
+import os
+import psycopg2
 
 app = Flask(__name__)
+
+
+def get_db_connection():
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT"),
+        database=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+    )
 
 
 @app.route("/")
 def home():
     return {
-        "application": "Kubernetes Flask Demo",
-        "version": "v2",
-        "pod": socket.gethostname(),
-        "status": "running"
+        "application": "Kubernetes Flask + PostgreSQL",
+        "status": "running",
+        "version": "v3"
     }
 
 
@@ -18,6 +28,23 @@ def home():
 def health():
     return {
         "status": "healthy"
+    }
+
+
+@app.route("/db-test")
+def db_test():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT version();")
+    result = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    return {
+        "database": "connected",
+        "postgresql_version": result[0]
     }
 
 
