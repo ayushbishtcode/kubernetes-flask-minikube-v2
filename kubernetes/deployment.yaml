@@ -20,11 +20,19 @@ spec:
     spec:
       containers:
         - name: flask
-          image: kubernetes-flask:v3
+          image: kubernetes-flask:v4
           imagePullPolicy: IfNotPresent
 
           ports:
             - containerPort: 5006
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
 
           envFrom:
             - configMapRef:

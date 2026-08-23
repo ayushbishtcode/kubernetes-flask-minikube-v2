@@ -30,6 +30,13 @@ def health():
         "status": "healthy"
     }
 
+@app.route("/api")
+def api():
+    return {
+        "message": "Flask API",
+        "status": "working"
+    }
+
 
 @app.route("/db-test")
 def db_test():

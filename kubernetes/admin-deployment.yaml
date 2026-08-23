@@ -1,6 +1,5 @@
 apiVersion: apps/v1
 kind: Deployment
-
 metadata:
   name: admin-deployment
   namespace: flask-dev
@@ -20,8 +19,8 @@ spec:
     spec:
       containers:
         - name: admin
-          image: admin-app:v1
-          imagePullPolicy: IfNotPresent
+          image: admin-app:v2
+          imagePullPolicy: Never
 
           ports:
             - containerPort: 5007

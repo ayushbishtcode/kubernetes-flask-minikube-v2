@@ -3,11 +3,19 @@ from flask import Flask
 app = Flask(__name__)
 
 
-@app.route("/")
-def home():
+@app.route("/admin")
+def admin():
     return {
-        "application": "Admin Service",
-        "status": "running"
+        "application": "Admin Application",
+        "message": "Admin API",
+        "status": "working"
+    }
+
+
+@app.route("/health")
+def health():
+    return {
+        "status": "healthy"
     }
 
 
