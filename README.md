@@ -2,98 +2,129 @@
 
 A hands-on Kubernetes project demonstrating how to deploy, expose, scale, update, and roll back a Flask application using Kubernetes and Minikube.
 
-This project was built to understand Kubernetes fundamentals through practical implementation rather than only theory.
-
----
-
-## 📌 Project Overview
-
-This project deploys a containerized Flask application to a local Kubernetes cluster running on Minikube.
-
-The project demonstrates:
-
-- Kubernetes Namespace
-- Pods
-- Deployments
-- ReplicaSets
-- Services
-- NodePort
-- Kubernetes desired state
-- Replica scaling
-- Rolling updates
-- Deployment revision history
-- Rollbacks
-- Pod logs
-- Pod execution
-- Basic application health endpoint
-
----
-
-## 🏗️ Architecture
+## Kubernetes Learning Roadmap Completed So Far
 
 ```text
-                         Local Mac
-                            |
-                            | HTTP Request
-                            | localhost:<minikube-port>
-                            v
-                    +----------------+
-                    |   Minikube     |
-                    |    Node        |
-                    +----------------+
-                            |
-                            | NodePort
-                            v
-                    +----------------+
-                    | Flask Service  |
-                    |    NodePort    |
-                    +----------------+
-                            |
-                     selector: app=flask
-                            |
-             +--------------+--------------+
-             |              |              |
-             v              v              v
-        +---------+    +---------+    +---------+
-        | Flask   |    | Flask   |    | Flask   |
-        | Pod     |    | Pod     |    | Pod     |
-        +---------+    +---------+    +---------+
-             |              |              |
-             v              v              v
-        Flask Container :5006
+1. Kubernetes Architecture
+        ↓
+2. Pods
+        ↓
+3. Namespaces
+        ↓
+4. kubectl
+        ↓
+5. Deployment
+        ↓
+6. Service
+        ↓
+7. ConfigMap
+        ↓
+8. Secret
+        ↓
+9. Flask + PostgreSQL
+        ↓
+10. Kubernetes Networking
+        ↓
+11. Ingress
+        ↓
+12. HPA
+        ↓
+13. PV / PVC
+        ↓
+14. StatefulSet
 ```
 
----
+## Architecture
 
-## 🔄 Kubernetes Object Relationship
+```text
+Local Mac
+   |
+   v
+Minikube Cluster
+   |
+   +--> Flask Service --> Flask Deployment --> Flask Pods
+   |
+   +--> PostgreSQL Service --> PostgreSQL StatefulSet
+                                      |
+                                      v
+                                postgres-0
+                                      |
+                                      v
+                                  PVC / PV
+                                      |
+                                      v
+                              Persistent Storage
+```
+
+## Kubernetes Object Relationships
+
+### Flask — Stateless
 
 ```text
 Deployment
-    |
-    v
+    ↓
 ReplicaSet
-    |
-    v
+    ↓
 Pods
-    |
-    v
+    ↓
 Container
 ```
 
-### Deployment
+### PostgreSQL — Stateful
 
-The Deployment defines the desired state of the application, including:
+```text
+StatefulSet
+    ↓
+Pod
+    ↓
+Container
+    ↓
+VolumeMount
+    ↓
+PVC
+    ↓
+PV
+    ↓
+Persistent Storage
+```
 
-- Number of replicas
-- Pod template
-- Container image
-- Rolling update strategy
+## Deployment
 
-### ReplicaSet
+The Deployment defines the desired state of the Flask application.
 
-The ReplicaSet ensures that the desired number of Pods exists.
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask-deployment
+  namespace: flask-dev
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: flask
+  template:
+    metadata:
+      labels:
+        app: flask
+    spec:
+      containers:
+        - name: flask
+          image: kubernetes-flask:v2
+          ports:
+            - containerPort: 5006
+```
 
-For example:
+Apply:
+
+```bash
+kubectl apply -f kubernetes/deployment.yaml
+kubectl get deployments -n flask-dev
+```
+
+## ReplicaSet
+
+A ReplicaSet maintains the desired number of Pods.
 
 ```text
 Desired: 3
@@ -101,79 +132,489 @@ Current: 3
 Ready:   3
 ```
 
-If a Pod is deleted, the ReplicaSet creates a replacement Pod.
+```bash
+kubectl get replicasets -n flask-dev
+```
 
-### Pod
+If a Pod is deleted, the ReplicaSet creates a replacement.
 
-The Pod is the Kubernetes execution unit that contains the Flask container.
+## Pods
 
-### Container
+Pods are the smallest deployable units in Kubernetes.
 
-The container runs the Flask application on port `5006`.
-
----
-
-# 📁 Project Structure
+Example Flask Pods:
 
 ```text
-kubernetes-flask-minikube-v2/
-│
-├── app/
-│   └── app.py
-│
-├── kubernetes/
-│   ├── deployment.yaml
-│   └── service.yaml
-│
-├── Dockerfile
-├── requirements.txt
-└── README.md
+flask-deployment-f6c9f76f4-cw974
+flask-deployment-f6c9f76f4-dwx2c
 ```
 
----
-
-# 🐍 Flask Application
-
-The Flask application provides two endpoints.
-
-## Application Endpoint
+Example StatefulSet Pod:
 
 ```text
-GET /
+postgres-0
 ```
 
-Example response:
+Useful commands:
 
-```json
-{
-  "application": "Kubernetes Flask Demo",
-  "version": "v2",
-  "pod": "flask-deployment-xxxx",
-  "status": "running"
-}
+```bash
+kubectl get pods -n flask-dev
+kubectl get pods -n flask-dev -o wide
+kubectl describe pod <pod-name> -n flask-dev
+kubectl logs <pod-name> -n flask-dev
 ```
 
-The Pod hostname is returned so that Kubernetes Service routing can be observed.
+## Namespaces
 
-## Health Endpoint
+The project uses:
 
 ```text
-GET /health
+flask-dev
 ```
 
-Response:
-
-```json
-{
-  "status": "healthy"
-}
+```bash
+kubectl create namespace flask-dev
+kubectl get namespaces
 ```
 
----
+## kubectl
 
-# 🐳 Docker
+`kubectl` communicates with the Kubernetes API Server.
 
-The Flask application is containerized using Docker.
+Examples:
+
+```bash
+kubectl get pods -n flask-dev
+kubectl get deployments -n flask-dev
+kubectl get services -n flask-dev
+kubectl describe pod <pod-name> -n flask-dev
+kubectl logs <pod-name> -n flask-dev
+kubectl exec -it <pod-name> -n flask-dev -- bash
+```
+
+## Service
+
+A Service provides a stable network endpoint for Pods.
+
+Example:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: flask-service
+  namespace: flask-dev
+spec:
+  selector:
+    app: flask
+  ports:
+    - port: 5006
+      targetPort: 5006
+      nodePort: 30006
+  type: NodePort
+```
+
+Traffic flow:
+
+```text
+Client
+  ↓
+NodePort
+  ↓
+Service
+  ↓
+Flask Pod
+  ↓
+Flask Container :5006
+```
+
+## ConfigMap
+
+ConfigMaps store non-sensitive configuration separately from application images.
+
+```text
+ConfigMap
+   ↓
+Pod
+   ↓
+Container
+```
+
+## Secret
+
+Secrets provide sensitive configuration such as database credentials.
+
+PostgreSQL receives its credentials from `flask-secret`.
+
+```yaml
+env:
+  - name: POSTGRES_USER
+    valueFrom:
+      secretKeyRef:
+        name: flask-secret
+        key: DB_USER
+
+  - name: POSTGRES_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: flask-secret
+        key: DB_PASSWORD
+```
+
+## Flask + PostgreSQL
+
+PostgreSQL runs on:
+
+```text
+5432
+```
+
+Database:
+
+```text
+employees
+```
+
+The database credentials are supplied through the Kubernetes Secret.
+
+## Kubernetes Networking
+
+Pods have IP addresses, but Pod IPs are not stable.
+
+Therefore applications should normally communicate through Services rather than directly using Pod IPs.
+
+## PostgreSQL Service
+
+The PostgreSQL StatefulSet uses:
+
+```text
+postgres-service
+```
+
+It is a headless Service:
+
+```text
+ClusterIP: None
+```
+
+Check:
+
+```bash
+kubectl get svc postgres-service -n flask-dev
+```
+
+## StatefulSet DNS
+
+The PostgreSQL Pod has stable identity:
+
+```text
+postgres-0
+```
+
+It can be reached using:
+
+```text
+postgres-0.postgres-service
+```
+
+Full DNS:
+
+```text
+postgres-0.postgres-service.flask-dev.svc.cluster.local
+```
+
+Test:
+
+```bash
+kubectl exec -n flask-dev <flask-pod> -- getent hosts postgres-0.postgres-service
+```
+
+## Persistent Storage
+
+Persistent storage allows database data to survive Pod recreation.
+
+```text
+Pod
+ ↓
+Container
+ ↓
+VolumeMount
+ ↓
+PVC
+ ↓
+PV
+ ↓
+Persistent Storage
+```
+
+Memory rule:
+
+```text
+Pod → PVC → PV → Storage
+```
+
+## PersistentVolume (PV)
+
+A PersistentVolume represents storage available to Kubernetes workloads.
+
+Check:
+
+```bash
+kubectl get pv
+```
+
+## PersistentVolumeClaim (PVC)
+
+A PVC requests storage.
+
+Example:
+
+```yaml
+resources:
+  requests:
+    storage: 1Gi
+```
+
+Check:
+
+```bash
+kubectl get pvc -n flask-dev
+```
+
+## StatefulSet
+
+PostgreSQL is stateful because its data must persist and the Pod needs stable identity.
+
+A StatefulSet provides:
+
+- Stable Pod identity
+- Stable Pod naming
+- Stable network identity
+- Per-Pod persistent storage
+- Ordered Pod creation and termination
+
+Example:
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+
+metadata:
+  name: postgres
+  namespace: flask-dev
+
+spec:
+  serviceName: postgres-service
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: postgres
+
+  template:
+    metadata:
+      labels:
+        app: postgres
+
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+
+          ports:
+            - containerPort: 5432
+
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: flask-secret
+                  key: DB_USER
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: flask-secret
+                  key: DB_PASSWORD
+
+            - name: POSTGRES_DB
+              value: employees
+
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+
+  volumeClaimTemplates:
+    - metadata:
+        name: postgres-storage
+
+      spec:
+        accessModes:
+          - ReadWriteOnce
+
+        storageClassName: standard
+
+        resources:
+          requests:
+            storage: 1Gi
+```
+
+## StatefulSet Identity
+
+Deployment Pods have dynamically generated names:
+
+```text
+flask-deployment-f6c9f76f4-cw974
+```
+
+StatefulSet Pods have predictable names:
+
+```text
+postgres-0
+postgres-1
+postgres-2
+```
+
+## volumeClaimTemplates
+
+`volumeClaimTemplates` creates a separate PVC for each StatefulSet Pod.
+
+With:
+
+```yaml
+replicas: 3
+```
+
+Kubernetes creates:
+
+```text
+postgres-0 → postgres-storage-postgres-0
+postgres-1 → postgres-storage-postgres-1
+postgres-2 → postgres-storage-postgres-2
+```
+
+Check:
+
+```bash
+kubectl get pvc -n flask-dev
+```
+
+## StatefulSet Persistence Test
+
+The project tested persistence by creating data in PostgreSQL, deleting the Pod, and checking the data after Kubernetes recreated the Pod.
+
+Example:
+
+```sql
+SELECT * FROM stateful_test;
+```
+
+Result:
+
+```text
+1 | StatefulSet storage survives Pod deletion
+```
+
+This demonstrated that deleting the Pod did not delete the persistent database data.
+
+## Deployment vs StatefulSet
+
+| Feature                 | Deployment     | StatefulSet                         |
+| ----------------------- | -------------- | ----------------------------------- |
+| Typical use             | Stateless apps | Stateful apps                       |
+| Pod identity            | Dynamic        | Stable                              |
+| Pod naming              | Generated      | Ordered                             |
+| Example                 | Flask          | PostgreSQL                          |
+| Stable network identity | Not guaranteed | Yes                                 |
+| Per-Pod storage         | Not automatic  | Supported with volumeClaimTemplates |
+
+Memory rule:
+
+```text
+Deployment  → Stateless
+StatefulSet → Stateful
+```
+
+## Ingress
+
+Ingress provides HTTP/HTTPS routing into Kubernetes Services.
+
+```text
+Browser
+  ↓
+Ingress
+  ↓
+Service
+  ↓
+Pods
+```
+
+## HPA
+
+Horizontal Pod Autoscaler can adjust replicas based on resource metrics such as CPU utilization.
+
+```text
+Traffic increases
+       ↓
+CPU utilization increases
+       ↓
+Metrics Server
+       ↓
+HPA
+       ↓
+Deployment
+       ↓
+More Pods
+```
+
+## Desired State and Reconciliation
+
+Kubernetes compares desired state with actual state.
+
+```text
+Desired: 3 Pods
+Actual:  2 Pods
+     ↓
+Controller detects difference
+     ↓
+New Pod created
+     ↓
+Actual: 3 Pods
+```
+
+## Application Traffic vs Kubernetes Control Flow
+
+### Application traffic
+
+```text
+Client
+  ↓
+Ingress / Service
+  ↓
+Pod
+  ↓
+Container
+  ↓
+Flask
+```
+
+### Kubernetes control flow
+
+```text
+kubectl
+  ↓
+API Server
+  ↓
+Controllers / Scheduler
+  ↓
+Kubelet
+  ↓
+Pod
+  ↓
+Container
+```
+
+## Docker
 
 Example Dockerfile:
 
@@ -193,579 +634,116 @@ EXPOSE 5006
 CMD ["python", "app.py"]
 ```
 
----
-
-# ☸️ Kubernetes Namespace
-
-A dedicated namespace is used for the project:
-
-```text
-flask-dev
-```
-
-Create it with:
-
-```bash
-kubectl create namespace flask-dev
-```
-
-Check namespaces:
-
-```bash
-kubectl get namespaces
-```
-
----
-
-# 🚀 Run the Project
-
-## 1. Start Minikube
-
-```bash
-minikube start
-```
-
-Verify the cluster:
-
-```bash
-kubectl cluster-info
-```
-
-Check nodes:
-
-```bash
-kubectl get nodes
-```
-
----
-
-## 2. Build the Docker Image
-
-Build the Flask application image:
-
-```bash
-docker build -t kubernetes-flask:v1 .
-```
-
-For the updated application:
+Build:
 
 ```bash
 docker build -t kubernetes-flask:v2 .
 ```
 
----
-
-## 3. Load the Image into Minikube
-
-Because this project uses a local Minikube cluster, the image needs to be available inside Minikube.
+Load into Minikube:
 
 ```bash
 minikube image load kubernetes-flask:v2
 ```
 
-Verify:
+## Run the Project
+
+Start Minikube:
 
 ```bash
-minikube image ls | grep kubernetes-flask
+minikube start
+kubectl cluster-info
+kubectl get nodes
 ```
 
----
-
-# 📦 Deployment
-
-The Deployment is defined in:
-
-```text
-kubernetes/deployment.yaml
-```
-
-Example:
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-
-metadata:
-  name: flask-deployment
-  namespace: flask-dev
-
-spec:
-  replicas: 3
-
-  selector:
-    matchLabels:
-      app: flask
-
-  template:
-    metadata:
-      labels:
-        app: flask
-
-    spec:
-      containers:
-        - name: flask
-          image: kubernetes-flask:v2
-          imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 5006
-```
-
-Apply the Deployment:
+Create namespace:
 
 ```bash
-kubectl apply -f kubernetes/deployment.yaml
+kubectl create namespace flask-dev
 ```
 
-Check the Deployment:
+Apply Kubernetes resources:
 
 ```bash
-kubectl get deployments -n flask-dev
+kubectl apply -f kubernetes/
 ```
 
-Expected:
-
-```text
-NAME               READY   UP-TO-DATE   AVAILABLE
-flask-deployment   3/3     3            3
-```
-
----
-
-# 🔍 ReplicaSet
-
-Check ReplicaSets:
-
-```bash
-kubectl get replicasets -n flask-dev
-```
-
-Example:
-
-```text
-NAME                          DESIRED   CURRENT   READY
-flask-deployment-695cddff49   3         3         3
-```
-
-The Deployment manages the ReplicaSet, and the ReplicaSet manages the Pods.
-
----
-
-# 🧩 Pods
-
-Check Pods:
-
-```bash
-kubectl get pods -n flask-dev
-```
-
-For detailed information:
-
-```bash
-kubectl get pods -n flask-dev -o wide
-```
-
-Example:
-
-```text
-NAME                                READY   STATUS
-flask-deployment-xxxx-xxxxx         1/1     Running
-flask-deployment-xxxx-xxxxx         1/1     Running
-flask-deployment-xxxx-xxxxx         1/1     Running
-```
-
----
-
-# 📜 Pod Logs
-
-View application logs:
-
-```bash
-kubectl logs <pod-name> -n flask-dev
-```
-
----
-
-# 🖥️ Execute Commands Inside a Pod
-
-Example:
-
-```bash
-kubectl exec <pod-name> -n flask-dev -- python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:5006/health').read().decode())"
-```
-
-Expected:
-
-```json
-{ "status": "healthy" }
-```
-
----
-
-# 🌐 Kubernetes Service
-
-The Flask application is exposed using a NodePort Service.
-
-Service configuration:
-
-```yaml
-apiVersion: v1
-kind: Service
-
-metadata:
-  name: flask-service
-  namespace: flask-dev
-
-spec:
-  selector:
-    app: flask
-
-  ports:
-    - port: 5006
-      targetPort: 5006
-      nodePort: 30006
-
-  type: NodePort
-```
-
-Apply it:
-
-```bash
-kubectl apply -f kubernetes/service.yaml
-```
-
-Check the Service:
-
-```bash
-kubectl get service -n flask-dev
-```
-
----
-
-# 🔀 Service Traffic Flow
-
-```text
-Mac
- |
- | localhost:<Minikube URL>
- v
-Minikube Node
- |
- | NodePort
- v
-Service
- |
- | selector: app=flask
- v
-One Flask Pod
- |
- v
-Flask Container :5006
-```
-
-The Service provides a stable endpoint while individual Pod IP addresses can change.
-
----
-
-# 🌍 Access the Application
-
-Get the Minikube Service URL:
+Access Flask:
 
 ```bash
 minikube service flask-service -n flask-dev --url
 ```
 
-Example:
-
-```text
-http://127.0.0.1:58300
-```
-
-Test the application:
+Test:
 
 ```bash
-curl http://127.0.0.1:58300
+curl <service-url>
+curl <service-url>/health
 ```
 
-Test the health endpoint:
-
-```bash
-curl http://127.0.0.1:58300/health
-```
-
----
-
-# 📈 Scaling
-
-Scale from 3 to 5 replicas:
+## Scaling
 
 ```bash
 kubectl scale deployment flask-deployment --replicas=5 -n flask-dev
-```
-
-Check:
-
-```bash
-kubectl get deployment -n flask-dev
 kubectl get pods -n flask-dev
 ```
 
-The existing ReplicaSet adjusts its desired number of Pods.
-
-Scale back to 3:
+Scale back:
 
 ```bash
 kubectl scale deployment flask-deployment --replicas=3 -n flask-dev
 ```
 
----
-
-# 🔄 Rolling Updates
-
-The original application used:
-
-```text
-kubernetes-flask:v1
-```
-
-The updated application uses:
-
-```text
-kubernetes-flask:v2
-```
-
-The image can be updated with:
+## Rolling Updates
 
 ```bash
 kubectl set image deployment/flask-deployment flask=kubernetes-flask:v2 -n flask-dev
-```
 
-Kubernetes creates a new ReplicaSet for the new Pod template.
-
-Conceptually:
-
-```text
-Old ReplicaSet
-     |
-     | v1
-     v
-3 old Pods
-
-        ↓ Rolling Update
-
-New ReplicaSet
-     |
-     | v2
-     v
-3 new Pods
-```
-
-Check the rollout:
-
-```bash
 kubectl rollout status deployment/flask-deployment -n flask-dev
-```
-
----
-
-# 🕐 Deployment History
-
-View Deployment revisions:
-
-```bash
 kubectl rollout history deployment/flask-deployment -n flask-dev
 ```
 
-Inspect a revision:
-
-```bash
-kubectl rollout history deployment/flask-deployment --revision=2 -n flask-dev
-```
-
----
-
-# ↩️ Rollback
-
-A deliberately broken `v3` image was used during the learning exercise to demonstrate rollback.
-
-The broken version produced:
-
-```text
-HTTP 500 Internal Server Error
-```
-
-while Kubernetes still considered the containers running because no application-level readiness probe had been configured yet.
-
-Rollback:
+## Rollback
 
 ```bash
 kubectl rollout undo deployment/flask-deployment -n flask-dev
-```
-
-Verify:
-
-```bash
 kubectl rollout status deployment/flask-deployment -n flask-dev
-kubectl get replicasets -n flask-dev
-curl http://127.0.0.1:58300
 ```
 
-The application returned version `v2`.
-
-```text
-v2
- ↓
-v3 ❌
- ↓
-rollback
- ↓
-v2 ✅
-```
-
----
-
-# 🎯 Key Kubernetes Concepts Learned
-
-## Pods
-
-Smallest deployable unit in Kubernetes.
-
-## Deployment
-
-Manages the desired state of an application and handles ReplicaSets and rolling updates.
-
-## ReplicaSet
-
-Maintains the desired number of Pods.
-
-## Service
-
-Provides a stable endpoint for accessing Pods.
-
-## NodePort
-
-Exposes a Service through a port on the Kubernetes node.
-
-## Namespace
-
-Provides logical isolation within the Kubernetes cluster.
-
-## Desired State
-
-Example:
-
-```yaml
-replicas: 3
-```
-
-## Reconciliation
-
-```text
-Desired: 3 Pods
-Actual:  2 Pods
-       ↓
-ReplicaSet creates another Pod
-       ↓
-Actual: 3 Pods
-```
-
-## Rolling Update
-
-Gradually replaces old Pods with new Pods when the Pod template changes.
-
-## Rollback
-
-Returns a Deployment to a previous revision.
-
----
-
-# 🧠 Application Traffic vs Kubernetes Control Flow
-
-### Application traffic
-
-```text
-Mac
- ↓
-NodePort
- ↓
-Service
- ↓
-Pod
- ↓
-Container
- ↓
-Flask
-```
-
-### Kubernetes control/reconciliation flow
-
-```text
-kubectl
- ↓
-API Server
- ↓
-Controllers / Scheduler
- ↓
-Node
- ↓
-Kubelet
- ↓
-Pod
- ↓
-Container
-```
-
-The API Server, etcd, controllers, scheduler, and kubelet are part of Kubernetes' control and management processes; they are not the normal path taken by an HTTP request to the Flask application.
-
----
-
-# 🧪 Commands Used
+## Useful Debugging Commands
 
 ```bash
-# Cluster
-minikube start
-kubectl cluster-info
-kubectl get nodes
-
-# Namespace
-kubectl create namespace flask-dev
-kubectl get namespaces
-
-# Deployments
-kubectl apply -f kubernetes/deployment.yaml
-kubectl get deployments -n flask-dev
-
-# ReplicaSets
-kubectl get replicasets -n flask-dev
-
-# Pods
 kubectl get pods -n flask-dev
 kubectl get pods -n flask-dev -o wide
 kubectl describe pod <pod-name> -n flask-dev
 kubectl logs <pod-name> -n flask-dev
-kubectl exec <pod-name> -n flask-dev -- <command>
-
-# Scaling
-kubectl scale deployment flask-deployment --replicas=5 -n flask-dev
-
-# Service
-kubectl apply -f kubernetes/service.yaml
-kubectl get service -n flask-dev
-minikube service flask-service -n flask-dev --url
-
-# Rolling updates
-kubectl set image deployment/flask-deployment flask=kubernetes-flask:v2 -n flask-dev
-kubectl rollout status deployment/flask-deployment -n flask-dev
-
-# History
-kubectl rollout history deployment/flask-deployment -n flask-dev
-
-# Rollback
-kubectl rollout undo deployment/flask-deployment -n flask-dev
+kubectl exec -it <pod-name> -n flask-dev -- bash
+kubectl get svc -n flask-dev
+kubectl get endpoints -n flask-dev
+kubectl get endpointslice -n flask-dev
+kubectl get pvc -n flask-dev
+kubectl get pv
+kubectl get statefulset -n flask-dev
 ```
 
----
+## PostgreSQL Commands
 
-# 🛠️ Technologies Used
+Connect:
+
+```bash
+kubectl exec -it -n flask-dev postgres-0 -- psql -U Ayush -d employees
+```
+
+Useful commands:
+
+```sql
+\l
+\dt
+SELECT * FROM stateful_test;
+\q
+```
+
+## Technologies Used
 
 - Kubernetes
 - Minikube
@@ -773,50 +751,80 @@ kubectl rollout undo deployment/flask-deployment -n flask-dev
 - Docker Desktop
 - Python
 - Flask
+- PostgreSQL
 - kubectl
 - YAML
 
----
+## What I Learned So Far
 
-# 📚 What I Learned
+1. Kubernetes architecture and control flow
+2. Pods and containers
+3. Namespaces
+4. kubectl
+5. Deployments and ReplicaSets
+6. Desired state and reconciliation
+7. Services and NodePort
+8. ConfigMaps
+9. Secrets
+10. Flask + PostgreSQL
+11. Kubernetes networking and DNS
+12. Ingress
+13. HPA
+14. PersistentVolumes and PersistentVolumeClaims
+15. VolumeMounts and persistent storage
+16. StatefulSets
+17. Stable StatefulSet Pod identity
+18. volumeClaimTemplates and per-Pod PVCs
+19. StatefulSet persistence after Pod deletion
+20. Rolling updates, revision history, and rollback
+21. Difference between Deployment and StatefulSet
 
-1. How Pods run containers
-2. How Deployments manage application workloads
-3. How ReplicaSets maintain the desired number of Pods
-4. How Kubernetes reconciles desired and actual state
-5. Why Pod IPs should not be treated as permanent endpoints
-6. How Services provide stable connectivity
-7. How NodePort exposes applications outside the cluster
-8. How Deployments perform rolling updates
-9. How Kubernetes maintains Deployment revision history
-10. How failed releases can be rolled back
-11. The difference between container state and application health
-12. The importance of keeping Kubernetes YAML synchronized with the intended state
+## Current Kubernetes Learning Progress
 
----
+```text
+✅ Kubernetes Architecture
+✅ Pods
+✅ Namespaces
+✅ kubectl
+✅ Deployment
+✅ ReplicaSet
+✅ Service
+✅ ConfigMap
+✅ Secret
+✅ Flask + PostgreSQL
+✅ Kubernetes Networking
+✅ Ingress
+✅ HPA
+✅ PV / PVC
+✅ StatefulSet
 
-# 🚧 Future Improvements
+⬜ Helm
+⬜ RBAC
+⬜ Network Policies
+⬜ Probes / Production Health Checks
+⬜ Advanced Networking
+⬜ GitOps
+⬜ AWS EKS
+⬜ CI/CD
+```
 
-- Readiness probes
-- Liveness probes
-- ConfigMaps
-- Secrets
-- PostgreSQL
-- Persistent Volumes
-- Persistent Volume Claims
-- Ingress
-- Horizontal Pod Autoscaler
-- StatefulSets
+## Next Learning Topics
+
 - Helm
 - RBAC
 - Network Policies
+- Readiness Probes
+- Liveness Probes
+- Resource Requests and Limits
+- Advanced StatefulSet concepts
+- Kubernetes Security
+- GitOps with Argo CD
 - AWS EKS
-- GitHub Actions CI/CD
+- Production Kubernetes architecture
+- CI/CD
 
----
+## Learning Goal
 
-## 👨‍💻 Learning Goal
+This project is part of a practical DevOps and Kubernetes learning path focused on building production-oriented skills through hands-on implementation.
 
-This project is part of a practical DevOps and Kubernetes learning path focused on building production-oriented skills through hands-on projects.
-
-The goal is to understand not only what Kubernetes objects are, but also how they interact during deployment, scaling, service discovery, rolling updates, failures, and recovery.
+The goal is to understand not only what Kubernetes resources are, but also how they interact during deployment, scheduling, scaling, networking, service discovery, configuration, secret management, persistent storage, stateful workloads, rolling updates, failures, and recovery.
