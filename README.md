@@ -828,6 +828,3 @@ SELECT * FROM stateful_test;
 This project is part of a practical DevOps and Kubernetes learning path focused on building production-oriented skills through hands-on implementation.
 
 The goal is to understand not only what Kubernetes resources are, but also how they interact during deployment, scheduling, scaling, networking, service discovery, configuration, secret management, persistent storage, stateful workloads, rolling updates, failures, and recovery.
-
-add helm
-add readme
